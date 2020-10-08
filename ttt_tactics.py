@@ -1110,7 +1110,7 @@ class AlphaZeroModel(Model):
 
           return pp
 
-    def __call__(self, s, training=False, keep_invalid_actions=False):
+    def __call__(self, s, training=False, policy=True):
 
         if training:
 
@@ -1134,7 +1134,7 @@ class AlphaZeroModel(Model):
 
         pp    = reshape(pp, [-1])
 
-        if not keep_invalid_actions:            
+        if policy:            
 
             return aa,pp
 
@@ -1196,7 +1196,7 @@ if TESTS > 0:
 
     pprint(pp)
 
-    aa,pp = model(s, keep_invalid_actions=True)
+    aa,pp = model(s, policy=False)
 
     pprint(aa)
 
@@ -1212,13 +1212,27 @@ DynamicNodeTable = partial(lookup.experimental.DenseHashTable,
 
                            key_dtype     = string,
 
-                           value_dtype   = float32,
+                           value_dtype   = int64,
 
-                           default_value = -ones([3*num_a],float32),
+                           default_value = -1,
 
                            empty_key     = constant(''),
 
                            deleted_key   = constant('DELETED'))
+
+
+
+DynamicDataTable = partial(lookup.experimental.DenseHashTable,
+
+                           key_dtype     = int64,
+
+                           value_dtype   = float32,
+
+                           default_value = -ones([3*num_a],float32),
+
+                           empty_key     = -1,
+
+                           deleted_key   = -2)
 
 
 
@@ -1236,59 +1250,83 @@ def AlphaZeroPolicy(model, times=1, cp=1, tau=1):
 
     nodes = DynamicNodeTable()
 
-        
+    datas = DynamicDataTable()
+
+    
 
     def getnode(key):
 
-        node = nodes.lookup(key)
+        return nodes.lookup(key)
 
-        return reshape(node,[3,num_a])
+                           
+
+    def getdata(node):
+
+        data = datas.lookup(node)
+
+        data = reshape(data,[3,num_a])
+
+        return data
+
+                           
+
+    def setdata(node, data):
+
+        datas.insert_or_assign(node,ravel(data))
 
 
 
-    def setnode(key, node):
-
-        nodes.insert_or_assign(key,ravel(node))
-
-
-
-    def newnode(key, pp):
+    def newdata(pp):
 
         qq   = zeros(num_a,float32)
 
         nn   = zeros(num_a,float32)
 
-        node = stack([pp,qq,nn])
+        data = stack([pp,qq,nn])
 
-        nodes.insert(key,ravel(node))
+        return data
+
+
+
+    def newnode(key, pp):
+
+        node = nodes.size()
+
+        data = newdata(pp)
+
+        nodes.insert(key,node)
+
+        setdata(node,data)
 
         return node
 
 
 
-    def updatenode(key, a, q):
+    def updatenode(node, a, q):
 
-        node  = getnode(key)
+        data  = getdata(node)
 
-        cma,n = node[1,a],node[2,a]
+        cma,n = data[1,a],data[2,a]
 
         n    += 1
 
         cma  += (q - cma) / n
 
-        node  = update_nd(node, [[1,a],[2,a]],[cma,n])
+        data  = update_nd(data, [[1,a],[2,a]],[cma,n])
 
-        setnode(key,node)
+        setdata(node,data)
 
 
 
     def puct(node, aa, cp=1):
 
-        sum_n   = reduce_sum(node[2])
+        data    = getdata(node)
+
+        sum_n   = reduce_sum(data[2])
 
         puctpqn = lambda p,q,n: q + cp*p*sqrt(sum_n)/(1+n)   
 
-        pucta   = lambda a: puctpqn(p=node[0,a],q=node[1,a],n=node[2,a])    
+        pucta   = lambda a: puctpqn(p=data[0,a],q=data[1,a],n=data[2,a])    
 
         uu      = map_fn(pucta, aa, fn_output_signature=float32)
 
@@ -1298,25 +1336,29 @@ def AlphaZeroPolicy(model, times=1, cp=1, tau=1):
 
     def pi(node, aa, tau=1):
 
-        nn = gather_nd(squeeze(node[2]),unravel(aa))
+        data = getdata(node)
+
+        nn   = gather_nd(squeeze(data[2]),unravel(aa))
 
         if tau == 0:
 
             return tiebreak(nn)
 
-        nn = nn**(1/tau)
+        nn    = nn**(1/tau)
 
-        return nn / reduce_sum(nn) 
+        sum_n = reduce_sum(nn)
+
+        return nn / sum_n 
 
 
 
-    def pushstep(route, a, key):
+    def pushstep(route, a, node):
 
-        depth            = route['keys'   ].size()
+        depth = route.size()
 
-        route['actions'] = route['actions'].write(depth,a)
+        step  = stack([a,node])
 
-        route['keys']    = route['keys'   ].write(depth,key)
+        route = route.write(depth,step)
 
         return route
 
@@ -1324,15 +1366,15 @@ def AlphaZeroPolicy(model, times=1, cp=1, tau=1):
 
     def backpropagate(route, q):
 
-        depth = route['keys'].size()
+        depth = route.size()
 
         while depth > 0:
 
-            a   = route['actions'].read(depth-1)
+            step   = route.read(depth-1)
 
-            key = route['keys'   ].read(depth-1)
+            a,node = step[0],step[1]
 
-            updatenode(key,a,q)
+            updatenode(node,a,q)
 
             q      = -q
 
@@ -1348,9 +1390,7 @@ def AlphaZeroPolicy(model, times=1, cp=1, tau=1):
 
         for t in range(times):
 
-            route  = {'actions' : DynamicTensorArray(int64), 
-
-                      'keys'    : DynamicTensorArray(string)}
+            route  = DynamicTensorArray(int64)
 
             s      = state
 
@@ -1368,11 +1408,11 @@ def AlphaZeroPolicy(model, times=1, cp=1, tau=1):
 
                 key   = digits(s)
 
-                node  = getnode(key)    
+                node  = getnode(key)  
 
-                if node[0,0] < 0:   
+                if node < 0:   
 
-                    q,pp = model(s, keep_invalid_actions=True)
+                    q,pp = model(s,policy=False)
 
                     node = newnode(key,pp)    
 
@@ -1384,7 +1424,7 @@ def AlphaZeroPolicy(model, times=1, cp=1, tau=1):
 
                     a,_      = choice(aa,pp)  
 
-                    route    = pushstep(route,a,key)
+                    route    = pushstep(route,a,node)
 
                     s,winner = game(s,a)
 
@@ -1431,9 +1471,3 @@ if TESTS:
     (s,p,a,r),_ = choice(samples, uniform(len(samples)))  
 
     pprint((s,p,a,r))
-
-
-
-# 10  ~ 17,15,32
-
-# 100 ~ 119,125,269
