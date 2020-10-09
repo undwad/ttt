@@ -56,7 +56,7 @@ from tensorflow.keras.models       import Model
 
 from tensorflow.keras.metrics      import Metric
 
-from tensorflow.keras.callbacks    import LearningRateScheduler
+from tensorflow.keras.callbacks    import LearningRateScheduler, TensorBoard
 
 from tensorflow.keras.utils        import Progbar, to_categorical, plot_model
 
