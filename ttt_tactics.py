@@ -834,6 +834,16 @@ def savesample(writer, state, probs, reward):
 
 
 
+def savesamples(path, samples):
+
+    with TFRecordWriter(path) as writer:
+
+        for (s,p,a,r) in samples:
+
+            savesample(writer,s,p,r)    
+
+
+
 @autograph.experimental.do_not_convert
 
 def loadsamples(files, buffer_size=1024, batch_size=64, seed=None):
@@ -848,15 +858,13 @@ def loadsamples(files, buffer_size=1024, batch_size=64, seed=None):
 
         sample = io.parse_single_example(sample,proto)
 
-        s      = sample['state']
+        input  = {'state'  : onehot(sample['state'])}
 
-        x      = onehot(s)
+        output = {'value'  : sample['reward'], 
 
-        p      = sample['probs']
+                  'policy' : sample['probs']}
 
-        r      = sample['reward']
-
-        return {'state':x}, {'policy':p,'value':r}
+        return input,output 
 
     ignore_order = data.Options()
 
@@ -868,7 +876,7 @@ def loadsamples(files, buffer_size=1024, batch_size=64, seed=None):
 
     dataset = dataset.map(loadsample, num_parallel_calls=AUTOTUNE)
 
-    dataset = dataset.shuffle(buffer_size=buffer_size, seed=seed)
+    dataset = dataset.shuffle(buffer_size=buffer_size, seed=seed, reshuffle_each_iteration=True)
 
     dataset = dataset.prefetch(buffer_size=AUTOTUNE)
 
@@ -909,6 +917,12 @@ if TESTS > 0:
         pprint(output['policy'][-1])
 
         pprint(output['value'][-1])
+
+
+
+print(savesamples)
+
+print(loadsamples)
 
 ### MODEL ###
 
@@ -1132,7 +1146,7 @@ class AlphaZeroModel(Model):
 
         pp    = softmax(reshape(pp,[1,-1]))
 
-        pp    = reshape(pp, [-1])
+        pp    = reshape(pp,[-1])
 
         if policy:            
 
