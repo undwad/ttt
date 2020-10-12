@@ -214,7 +214,7 @@ winidx = ragged.constant([
 
 def digits(s):
 
-    return strings.reduce_join(as_string(s))
+    return strings.reduce_join(as_string(s[:-1]+1))
 
 
 
@@ -848,11 +848,11 @@ def savesamples(path, samples):
 
 def loadsamples(files, buffer_size=1024, batch_size=64, seed=None):
 
-    proto = { 'state'  : FixedLenFeature([size_s], int64),
+    proto = {'state'  : FixedLenFeature([size_s], int64),
 
-              'probs'  : FixedLenFeature([num_a],  float),
+             'probs'  : FixedLenFeature([num_a],  float),
 
-              'reward' : FixedLenFeature([1],      int64) }
+             'reward' : FixedLenFeature([1],      int64)}
 
     def loadsample(sample):
 
@@ -1472,7 +1472,7 @@ if TESTS:
 
     autograph.set_verbosity(0, alsologtostdout=False)
 
-    pi = AlphaZeroPolicy(model, times=10, cp=1, tau=1)   
+    pi = AlphaZeroPolicy(model, times=100, cp=2, tau=1)   
 
     testgames({1:pi, 2:randompi}, iters=10) 
 
