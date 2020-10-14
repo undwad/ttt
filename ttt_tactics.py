@@ -2,6 +2,12 @@
 
 
 
+# from IPython.core.interactiveshell import InteractiveShell
+
+# InteractiveShell.ast_node_interactivity = "all"
+
+
+
 ipynb = 'ttt-tactics'
 
 
@@ -34,6 +40,8 @@ from functools            import partial
 
 from os.path              import isfile,isdir
 
+from hyperdash            import monitor_cell
+
 
 
 from tensorflow.train              import BytesList, FloatList, Int64List, Feature, Features, Example
@@ -59,8 +67,6 @@ from tensorflow.keras.metrics      import Metric
 from tensorflow.keras.callbacks    import LearningRateScheduler, TensorBoard
 
 from tensorflow.keras.utils        import Progbar, to_categorical, plot_model
-
-from tensorflow.python.client      import device_lib
 
 from tensorflow.math               import is_nan
 
@@ -144,7 +150,9 @@ def NOTIFY(msg, **kwargs):
 
 
 
-print(device_lib.list_local_devices())
+pprint(config.list_physical_devices())
+
+print('cuda:',tf.test.is_built_with_cuda())
 
 print('tensorflow:', tf.__version__)
 
