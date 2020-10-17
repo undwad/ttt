@@ -144,15 +144,41 @@ def throttle(interval):
 
 
 
-def shuffleall(*xx):
+class Composable:
 
-    n   = min([len(x) for x in xx])
+    def __init__(self,f):
 
-    rnd = permutation(n)
+        self.f = f
 
-    xx  = [x[rnd] for x in xx]
+    def __call__(self,*args,**kwargs):
 
-    return tuple(xx)
+        return self.f(*args,**kwargs)
+
+    def __rshift__(self,next):              
+
+        def fn(*args,**kwargs):
+
+            x              = self(*args,**kwargs)
+
+            is_args        = type(x) == Tuple
+
+            is_args_kwargs = is_args and len(x) == 2 and type(x[0]) == Tuple and type(x[1]) == Dict
+
+            if is_args_kwargs:  args,kwargs = x
+
+            elif is_args:       args,kwargs = x,{}
+
+            else:               args,kwargs = (x,),{}
+
+            return next(*args,**kwargs)
+
+        return Composable(fn)
+
+
+
+def composable(f):
+
+    return Composable(f)
 
 
 
@@ -186,13 +212,17 @@ def NOTIFY(msg, **kwargs):
 
 pprint(config.list_physical_devices())
 
-print('cuda:',tf.test.is_built_with_cuda())
+print('cuda:',       tf.test.is_built_with_cuda())
 
 print('tensorflow:', tf.__version__)
 
+print('python:',     sys.version)
+
+print('module: ',    __name__)
 
 
-DIR   = f'./{ipynb}'
+
+DIR = f'./{ipynb}'
 
 Path(DIR).mkdir(parents=True, exist_ok=True)
 
@@ -201,10 +231,6 @@ print('DIR =', DIR)
 
 
 TESTS = __name__ == '__main__'
-
-
-
-print('MODULE = ', __name__)
 
 ### GAME ###
 
