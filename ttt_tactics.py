@@ -792,13 +792,13 @@ rotations_and_flips = map_rotations_and_flips()
 
 def kron(a,b,dtype=float32):
 
-  a = linalg.LinearOperatorFullMatrix(cast(a,float32))
+    a = linalg.LinearOperatorFullMatrix(cast(a,float32))
 
-  b = linalg.LinearOperatorFullMatrix(cast(b,float32))
+    b = linalg.LinearOperatorFullMatrix(cast(b,float32))
 
-  c = linalg.LinearOperatorKronecker([a, b])
+    c = linalg.LinearOperatorKronecker([a, b])
 
-  return cast(c.to_dense(), dtype)  
+    return cast(c.to_dense(), dtype)  
 
 
 
@@ -860,19 +860,19 @@ def savesample(writer, state, probs, reward):
 
     for s,p,r in zip(ss,pp,rr):
 
-      sample = Example(
+        sample = Example(
 
-          features=Features(
+            features=Features(
 
-              feature={
+                feature={
 
-                  'state'  : Feature(int64_list=Int64List(value=s)),
+                    'state'  : Feature(int64_list=Int64List(value=s)),
 
-                  'probs'  : Feature(float_list=FloatList(value=p)),
+                    'probs'  : Feature(float_list=FloatList(value=p)),
 
-                  'reward' : Feature(int64_list=Int64List(value=[r]))}))
+                    'reward' : Feature(int64_list=Int64List(value=[r]))}))
 
-      writer.write(sample.SerializeToString())
+        writer.write(sample.SerializeToString())
 
 
 
@@ -1004,7 +1004,7 @@ def ConvLayer(filters     = None,
 
         if add is not None:
 
-          y = Add()([y, add])  
+            y = Add()([y, add])  
 
         z = Activation(activation)(y)
 
@@ -1228,7 +1228,7 @@ class AlphaZeroModel(Model):
 
         self.__name__ = Path(path).stem
 
-  
+
 
 print(AlphaZeroModel)    
 
