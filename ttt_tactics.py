@@ -20,6 +20,10 @@ import matplotlib.pyplot as plt
 
 
 
+List,Tuple,Dict = list,tuple,dict
+
+
+
 from tensorflow           import *
 
 from tensorflow           import strings, ragged, math, random, data, io, linalg, lookup, config, autograph
@@ -36,11 +40,9 @@ from pathlib              import Path
 
 from pprint               import pprint
 
-from functools            import partial
+from functools            import partial, singledispatch
 
 from os.path              import isfile,isdir
-
-from hyperdash            import monitor_cell
 
 
 
@@ -64,7 +66,7 @@ from tensorflow.keras.models       import Model
 
 from tensorflow.keras.metrics      import Metric
 
-from tensorflow.keras.callbacks    import LearningRateScheduler, TensorBoard
+from tensorflow.keras.callbacks    import LearningRateScheduler, TensorBoard, LambdaCallback
 
 from tensorflow.keras.utils        import Progbar, to_categorical, plot_model
 
@@ -105,6 +107,38 @@ def rename(newname):
         f.__name__ = newname
 
         return f
+
+    return decorator
+
+
+
+class Throttle:
+
+    def __init__(self,fn,interval=5):
+
+        self.fn = fn
+
+        self.dt = interval
+
+        self.t  = timestamp()
+
+    def __call__(self,*args,**kwargs):
+
+        t = timestamp()
+
+        if t - self.t > self.dt:
+
+            self.t = t
+
+            self.fn(*args,**kwargs)
+
+    
+
+def throttle(interval):
+
+    def decorator(fn):
+
+        return Throttle(fn,interval)
 
     return decorator
 
