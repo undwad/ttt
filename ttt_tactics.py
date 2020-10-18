@@ -12,7 +12,7 @@ ipynb = 'ttt-tactics'
 
 
 
-import sys, os, json, glob, re, gc
+import sys, os, json, glob, re, gc, traceback
 
 import tensorflow        as tf
 
@@ -34,7 +34,7 @@ from ipywidgets           import widgets, HBox, VBox, Layout
 
 from IPython.core.display import display, HTML, Javascript as JS
 
-from pandas               import DataFrame
+from pandas               import DataFrame, Series
 
 from pathlib              import Path
 
