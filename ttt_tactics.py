@@ -114,13 +114,13 @@ def rename(newname):
 
 class Throttle:
 
-    def __init__(self,fn,interval=5):
+    def __init__(self,f,interval=5):
 
-        self.fn = fn
-
-        self.dt = interval
+        self.f  = f
 
         self.t  = timestamp()
+
+        self.dt = interval      
 
     def __call__(self,*args,**kwargs):
 
@@ -130,7 +130,7 @@ class Throttle:
 
             self.t = t
 
-            self.fn(*args,**kwargs)
+            self.f(*args,**kwargs)
 
     
 
@@ -144,21 +144,13 @@ def throttle(interval):
 
 
 
-class Composable:
+def compose(*ff):
 
-    def __init__(self,f):
+    def composition(*args,**kwargs):
 
-        self.f = f
+        for f in reversed(ff):
 
-    def __call__(self,*args,**kwargs):
-
-        return self.f(*args,**kwargs)
-
-    def __rshift__(self,next):              
-
-        def fn(*args,**kwargs):
-
-            x              = self(*args,**kwargs)
+            x              = f(*args,**kwargs)
 
             is_args        = type(x) == Tuple
 
@@ -170,11 +162,55 @@ class Composable:
 
             else:               args,kwargs = (x,),{}
 
-            return next(*args,**kwargs)
+        return x
 
-        return Composable(fn)
+    return composition
 
 
+
+class Composable:
+
+    def __init__(self,f):
+
+        self.f = f
+
+    def __call__(self,*args,**kwargs):
+
+        return self.f(*args,**kwargs)
+
+    def __lshift__(self,other):              
+
+        return Composable(compose(self,other))
+
+    def __rshift__(self,other):              
+
+        return Composable(compose(other,self))
+
+    def __and__(self,other):
+
+        def f(*args,**kwargs):
+
+            return self(*args,**kwargs) and other(*args,**kwargs)
+
+        return Composable(f)
+
+    def __or__(self,other):
+
+        def f(*args,**kwargs):
+
+            return self(*args,**kwargs) or other(*args,**kwargs)
+
+        return Composable(f)
+
+    def __invert__(self):
+
+        def f(*args,**kwargs):
+
+            return not self(*args,**kwargs)
+
+        return Composable(f)
+
+    
 
 def composable(f):
 
