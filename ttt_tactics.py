@@ -794,13 +794,37 @@ if TESTS > 0:
 
 
 
+def splitfilepath(path):
+
+    return re.findall(r'(.+)-(\d+).(.+)',path)[0]
+
+
+
+def getfilenum(path):
+
+    path,num,sfx = splitfilepath(path)
+
+    return int(num)
+
+
+
+def nextfile(path):
+
+    path,num,sfx = splitfilepath(path)
+
+    pad,num      = len(num),int(num)
+
+    return f'{path}-{(num+1):0>8d}.{sfx}'
+
+    
+
 def sortedfiles(path):
 
     paths = list(glob.glob(path)) 
 
-    paths.sort(key=os.path.getmtime)
+    paths.sort(key=getfilenum)
 
-    return paths            
+    return paths                   
 
 
 
